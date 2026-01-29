@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth0 } from '@auth0/auth0-react';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
 import { SubscriptionService } from '../services/subscriptionService';
-import { SocialMediaService } from '../services/socialMediaService';
-import { TrendService } from '../services/trendService';
 import { GeminiService } from '../services/geminiService';
-import { useNavigate } from 'react-router-dom';
+import { TrendService } from '../services/trendService';
+import { ScriptTrackingService } from '../services/scriptTrackingService';
+import { SocialMediaService } from '../services/socialMediaService';
 import { 
   FileText, 
   TrendingUp, 
-  Brain, 
-  Zap, 
+  Users, 
+  Copy, 
+  Trash2, 
+  RefreshCw,
   AlertCircle, 
   CheckCircle,
   CreditCard,
@@ -96,6 +100,9 @@ export default function ScriptGeneratorPage() {
       // Generate script using real Google Gemini API
       const script = await GeminiService.generateScript(scriptData);
       setGeneratedScript(script);
+      
+      // Track the script generation
+      ScriptTrackingService.trackScript(scriptData, script);
     } catch (error) {
       console.error('Error generating script:', error);
       alert(error.message);

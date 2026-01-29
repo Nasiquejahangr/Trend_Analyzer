@@ -3,22 +3,33 @@ import { useAuth0 } from '@auth0/auth0-react';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
 import SocialMediaAnalytics from '../components/dashboard/SocialMediaAnalytics';
 import { SocialMediaService } from '../services/socialMediaService';
-import { TrendingUp, Users, FileText, ArrowUpRight } from 'lucide-react';
+import { ScriptTrackingService } from '../services/scriptTrackingService';
+import { TrendingUp, Users, FileText, ArrowUpRight, Eye, Clock, BarChart3 } from 'lucide-react';
 
 export default function DashboardPage() {
   const { user } = useAuth0();
   const [socialData, setSocialData] = useState([]);
+  const [scriptStats, setScriptStats] = useState(null);
+  const [recentScripts, setRecentScripts] = useState([]);
   const [metrics, setMetrics] = useState({
-    totalViews: '2.4M',
-    totalFollowers: '125K',
-    totalPosts: '48',
-    growthRate: '+14%'
+    totalViews: '0',
+    totalFollowers: '0',
+    totalPosts: '0',
+    growthRate: '+0%'
   });
 
   // Load social media data and calculate metrics
   useEffect(() => {
     const loadMetrics = async () => {
       try {
+        // Initialize script tracking
+        ScriptTrackingService.initializeTracking();
+        
+        // Load script statistics
+        const scriptData = ScriptTrackingService.getFormattedStats();
+        setScriptStats(scriptData);
+        setRecentScripts(scriptData.recentScripts);
+        
         // Load profile data and sync
         const profileData = localStorage.getItem('userProfileData');
         if (profileData) {
@@ -29,10 +40,10 @@ export default function DashboardPage() {
           // Calculate real metrics
           const formattedMetrics = SocialMediaService.getFormattedMetrics(syncedData);
           setMetrics({
-            totalViews: formattedMetrics.totalViews || '2.4M',
-            totalFollowers: formattedMetrics.totalFollowers || '125K',
-            totalPosts: formattedMetrics.totalPosts || '48',
-            growthRate: formattedMetrics.growthRate || '+14%'
+            totalViews: formattedMetrics.totalViews || '0',
+            totalFollowers: formattedMetrics.totalFollowers || '0',
+            totalPosts: formattedMetrics.totalPosts || '0',
+            growthRate: formattedMetrics.growthRate || '+0%'
           });
         } else {
           // Fallback to existing social media data
@@ -41,10 +52,10 @@ export default function DashboardPage() {
             setSocialData(existingData);
             const formattedMetrics = SocialMediaService.getFormattedMetrics(existingData);
             setMetrics({
-              totalViews: formattedMetrics.totalViews || '2.4M',
-              totalFollowers: formattedMetrics.totalFollowers || '125K',
-              totalPosts: formattedMetrics.totalPosts || '48',
-              growthRate: formattedMetrics.growthRate || '+14%'
+              totalViews: formattedMetrics.totalViews || '0',
+              totalFollowers: formattedMetrics.totalFollowers || '0',
+              totalPosts: formattedMetrics.totalPosts || '0',
+              growthRate: formattedMetrics.growthRate || '+0%'
             });
           }
         }
@@ -76,10 +87,10 @@ export default function DashboardPage() {
       <div className="stats-overview">
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary-color)' }}>
-            <TrendingUp size={24} />
+            <Eye size={24} />
           </div>
           <div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Total Views Analysis</p>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Total Views</p>
             <h3 style={{ fontSize: '1.5rem', margin: 0 }}>{metrics.totalViews}</h3>
             <span style={{ color: '#10b981', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
               <ArrowUpRight size={12} /> {metrics.growthRate} vs last week
@@ -93,9 +104,9 @@ export default function DashboardPage() {
           </div>
           <div>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Scripts Generated</p>
-            <h3 style={{ fontSize: '1.5rem', margin: 0 }}>48</h3>
+            <h3 style={{ fontSize: '1.5rem', margin: 0 }}>{scriptStats?.totalGenerated || 0}</h3>
             <span style={{ color: '#10b981', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              <ArrowUpRight size={12} /> 12 new this week
+              <ArrowUpRight size={12} /> {scriptStats?.thisWeek || 0} new this week
             </span>
           </div>
         </div>
@@ -117,20 +128,46 @@ export default function DashboardPage() {
       {/* Social Media Analytics Section */}
       <SocialMediaAnalytics />
 
-      <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', marginTop: '2rem' }}>Recent Activity</h2>
+      <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', marginTop: '2rem' }}>Recent Scripts Generated</h2>
       <div className="recent-activity">
-        {[1, 2, 3].map((i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 0', borderBottom: i !== 3 ? '1px solid var(--border-color)' : 'none' }}>
-            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--background-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <TrendingUp size={18} color="var(--primary-color)" />
+        {recentScripts.length > 0 ? (
+          recentScripts.map((script) => (
+            <div key={script.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 0', borderBottom: '1px solid var(--border-color)' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--background-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <FileText size={18} color="var(--primary-color)" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <h4 style={{ margin: 0, fontSize: '0.95rem' }}>{script.topic}</h4>
+                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  {script.platform} • {script.style} • {script.wordCount} words • {script.timeAgo}
+                </p>
+              </div>
+              <button 
+                onClick={() => {
+                  // Navigate to script generator with this script's data
+                  window.location.href = `/script-generator?script=${script.id}`;
+                }}
+                className="btn-secondary" 
+                style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+              >
+                View Script
+              </button>
             </div>
-            <div style={{ flex: 1 }}>
-              <h4 style={{ margin: 0, fontSize: '0.95rem' }}>Trend Analysis: "AI Tools for Productivity"</h4>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Completed 2 hours ago</p>
-            </div>
-            <button className="btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>View Report</button>
+          ))
+        ) : (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+            <FileText size={48} style={{ marginBottom: '1rem', opacity: 0.5 }} />
+            <p>No scripts generated yet</p>
+            <p style={{ fontSize: '0.9rem' }}>Start creating your first script to see it here!</p>
+            <button 
+              onClick={() => window.location.href = '/script-generator'}
+              className="btn" 
+              style={{ marginTop: '1rem' }}
+            >
+              Generate First Script
+            </button>
           </div>
-        ))}
+        )}
       </div>
     </DashboardLayout>
   );
