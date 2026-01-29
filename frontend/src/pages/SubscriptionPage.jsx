@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
 import { useAuth0 } from '@auth0/auth0-react';
+import { SubscriptionService } from '../services/subscriptionService';
+import { RazorpayService } from '../services/razorpayService';
 import { 
   Check, 
   X, 
@@ -12,7 +14,9 @@ import {
   MessageSquare,
   TrendingUp,
   Brain,
-  Sparkles
+  Sparkles,
+  CreditCard,
+  Loader
 } from 'lucide-react';
 
 export default function SubscriptionPage() {
@@ -97,6 +101,8 @@ export default function SubscriptionPage() {
   ];
 
   const handleSubscribe = async (planId) => {
+    if (loading) return; // Prevent multiple clicks
+    
     setLoading(true);
     try {
       const plan = plans.find(p => p.id === planId);
@@ -133,28 +139,47 @@ export default function SubscriptionPage() {
   };
 
   const handlePayment = async (plan) => {
-    // For now, simulate payment and save subscription
-    // In production, integrate with Razorpay/Stripe here
-    
-    const subscription = {
-      plan: plan.id,
-      scriptsRemaining: plan.scripts,
-      totalScripts: plan.scripts,
-      price: plan.price,
-      currency: plan.currency,
-      startDate: new Date().toISOString(),
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
-      status: 'active',
-      paymentId: 'demo_payment_' + Date.now()
-    };
-    
-    localStorage.setItem('userSubscription', JSON.stringify(subscription));
-    
-    // Show success message
-    alert(`Successfully subscribed to ${plan.name} plan! Redirecting to script generator...`);
-    
-    // Redirect to script generator
-    window.location.href = '/script-generator';
+    try {
+      // Don't set loading here as it's already set in handleSubscribe
+      
+      // Initiate Razorpay payment
+      const paymentResult = await RazorpayService.initiatePayment(plan, {
+        name: user?.name || 'User',
+        email: user?.email || 'user@example.com',
+        phone: user?.phone || ''
+      });
+
+      // If payment successful, save subscription
+      if (paymentResult.success) {
+        const subscription = {
+          plan: plan.id,
+          scriptsRemaining: plan.scripts,
+          totalScripts: plan.scripts,
+          price: plan.price,
+          currency: plan.currency,
+          startDate: new Date().toISOString(),
+          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+          status: 'active',
+          paymentId: paymentResult.paymentId,
+          orderId: paymentResult.orderId,
+          paymentMethod: 'razorpay'
+        };
+        
+        SubscriptionService.saveSubscription(subscription);
+        
+        // Show success message
+        alert(`🎉 Payment successful! You're now subscribed to ${plan.name} plan!`);
+        
+        // Redirect to script generator
+        window.location.href = '/script-generator';
+      } else {
+        throw new Error('Payment failed');
+      }
+    } catch (error) {
+      console.error('Payment error:', error);
+      alert(`❌ Payment failed: ${error.message}`);
+      throw error; // Re-throw to handle in handleSubscribe
+    }
   };
 
   const getCurrentSubscription = () => {
@@ -219,9 +244,13 @@ export default function SubscriptionPage() {
               position: 'relative',
               transform: selectedPlan === plan.id ? 'scale(1.05)' : 'scale(1)',
               transition: 'all 0.3s ease',
-              cursor: 'pointer'
+              cursor: loading ? 'not-allowed' : 'pointer'
             }}
-            onClick={() => setSelectedPlan(plan.id)}
+            onClick={() => {
+              if (!loading && currentSubscription?.plan !== plan.id) {
+                setSelectedPlan(plan.id);
+              }
+            }}
           >
             {/* Popular Badge */}
             {plan.popular && (
@@ -313,6 +342,7 @@ export default function SubscriptionPage() {
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                e.preventDefault();
                 handleSubscribe(plan.id);
               }}
               disabled={loading || (currentSubscription?.plan === plan.id)}
@@ -326,13 +356,30 @@ export default function SubscriptionPage() {
                 color: 'white',
                 border: 'none',
                 borderRadius: '8px',
-                cursor: currentSubscription?.plan === plan.id ? 'not-allowed' : 'pointer',
-                opacity: currentSubscription?.plan === plan.id ? 0.6 : 1
+                cursor: (loading || currentSubscription?.plan === plan.id) ? 'not-allowed' : 'pointer',
+                opacity: (loading || currentSubscription?.plan === plan.id) ? 0.6 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                pointerEvents: loading ? 'none' : 'auto'
               }}
             >
-              {loading ? 'Processing...' : 
-               currentSubscription?.plan === plan.id ? 'Current Plan' : 
-               plan.price === 0 ? 'Get Started' : `Subscribe for ${plan.priceDisplay}`}
+              {loading ? (
+                <>
+                  <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} />
+                  Processing...
+                </>
+              ) : currentSubscription?.plan === plan.id ? (
+                'Current Plan'
+              ) : plan.price === 0 ? (
+                'Get Started'
+              ) : (
+                <>
+                  <CreditCard size={16} />
+                  Pay {plan.priceDisplay}
+                </>
+              )}
             </button>
           </div>
         ))}

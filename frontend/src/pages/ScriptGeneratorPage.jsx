@@ -3,6 +3,7 @@ import DashboardLayout from '../components/dashboard/DashboardLayout';
 import { SubscriptionService } from '../services/subscriptionService';
 import { SocialMediaService } from '../services/socialMediaService';
 import { TrendService } from '../services/trendService';
+import { GeminiService } from '../services/geminiService';
 import { useNavigate } from 'react-router-dom';
 import { 
   FileText, 
@@ -63,6 +64,15 @@ export default function ScriptGeneratorPage() {
       const socialData = SocialMediaService.loadSocialData();
       const trends = await TrendService.getTrendAnalysis(socialData);
       setTrendingTopics(trends?.twitterTrends?.slice(0, 5) || []);
+      
+      // Extract domain and keywords for better AI generation
+      if (trends?.domain) {
+        setScriptData(prev => ({ 
+          ...prev, 
+          domain: trends.domain,
+          trendingKeywords: trends.keywords?.slice(0, 5).map(k => k.keyword) || []
+        }));
+      }
     } catch (error) {
       console.error('Error loading trending topics:', error);
     }
@@ -80,8 +90,8 @@ export default function ScriptGeneratorPage() {
       const remaining = SubscriptionService.useScript();
       setSubscription(prev => ({ ...prev, scriptsRemaining: remaining }));
 
-      // Generate script using Google Gemini API (simulated for now)
-      const script = await generateScriptWithGemini(scriptData);
+      // Generate script using real Google Gemini API
+      const script = await GeminiService.generateScript(scriptData);
       setGeneratedScript(script);
     } catch (error) {
       console.error('Error generating script:', error);
@@ -91,37 +101,12 @@ export default function ScriptGeneratorPage() {
     }
   };
 
-  const generateScriptWithGemini = async (data) => {
-    // Simulate Google Gemini API call
-    // In production, integrate with actual Google Gemini API
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    const templates = {
-      youtube: {
-        casual: `Hey everyone! Welcome back to the channel. Today we're talking about ${data.topic}.\n\n${data.topic} has been trending lately, and for good reason. Let me break down what you need to know...\n\nFirst off, ${data.topic} is changing the game because...\n\nIf you found this helpful, don't forget to like and subscribe!`,
-        professional: `In today's comprehensive analysis, we'll examine ${data.topic} and its implications for the industry.\n\n${data.topic} represents a significant shift in how we approach... Let's explore the key factors:\n\n1. Understanding the fundamentals of ${data.topic}\n2. Recent developments and trends\n3. Future implications and opportunities\n\nThank you for watching. Please share your thoughts in the comments below.`,
-        energetic: `WHAT'S UP EVERYONE! 🔥 Today we're diving deep into ${data.topic} and trust me, you don't want to miss this!\n\n${data.topic} is absolutely blowing up right now and I'm here to tell you WHY!\n\nLet's go! 💪\n\nSMASH that like button if you're excited about ${data.topic}!`
-      },
-      instagram: {
-        casual: `${data.topic} ✨\n\nBeen seeing this everywhere lately and had to share my thoughts!\n\nWhat do you guys think about ${data.topic}? Drop a comment below! 👇\n\n#${data.topic.replace(/\s+/g, '')} #trending #viral`,
-        professional: `Understanding ${data.topic}: A Professional Perspective\n\nKey insights on ${data.topic} and its impact on our industry.\n\nFollow for more expert analysis on trending topics.\n\n#${data.topic.replace(/\s+/g, '')} #business #professional`,
-        energetic: `${data.topic} IS TAKING OVER! 🚀\n\nCan't believe how fast ${data.topic} is growing!\n\nWho else is excited about this?! 🙌\n\n#${data.topic.replace(/\s+/g, '')} #trending #viral #excited`
-      },
-      twitter: {
-        casual: `${data.topic} is trending and I have thoughts... 🤔\n\nWhat's your take on ${data.topic}?\n\n#${data.topic.replace(/\s+/g, '')} #trending`,
-        professional: `Analysis: ${data.topic} represents a significant development in the industry. Key implications include...\n\n#${data.topic.replace(/\s+/g, '')} #analysis #business`,
-        energetic: `${data.topic} IS EVERYWHERE RIGHT NOW! 🔥\n\nIf you're not talking about ${data.topic}, you're missing out!\n\n#${data.topic.replace(/\s+/g, '')} #trending #viral`
-      }
-    };
-
-    const platformTemplates = templates[data.platform] || templates.youtube;
-    const script = platformTemplates[data.style] || platformTemplates.casual;
-
-    return script;
-  };
-
   const handleTopicSelect = (topic) => {
-    setScriptData(prev => ({ ...prev, topic: topic.name }));
+    setScriptData(prev => ({ 
+      ...prev, 
+      topic: topic.name,
+      keywords: topic.keywords || []
+    }));
   };
 
   if (loading) {
@@ -354,7 +339,7 @@ export default function ScriptGeneratorPage() {
               {generating ? (
                 <>
                   <div style={{ width: '16px', height: '16px', border: '2px solid white', borderTop: '2px solid transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                  Generating with AI...
+                  Generating with Gemini AI...
                 </>
               ) : (
                 <>
