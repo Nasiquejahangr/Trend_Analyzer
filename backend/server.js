@@ -57,12 +57,19 @@ const authenticateToken = (req, res, next) => {
 };
 
 // MongoDB connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/trend-analyzer', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
+console.log('Attempting to connect to MongoDB...');
+const uri = 'mongodb://localhost:27017/trend-analyzer';
+console.log('MongoDB URI:', uri); // Local connection doesn't need masking
+
+mongoose.connect(uri)
   .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('MongoDB connection error:', err));
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+    console.error('Connection details:', {
+      uri: uri,
+      state: mongoose.connection.readyState
+    });
+  });
 
 // User Schema
 const userSchema = new mongoose.Schema({
